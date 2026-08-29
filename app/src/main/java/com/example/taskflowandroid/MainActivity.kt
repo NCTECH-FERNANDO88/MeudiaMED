@@ -2,6 +2,7 @@ package com.example.taskflowandroid
 
 import android.os.Bundle
 import android.content.Context
+import android.app.DatePickerDialog
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -50,7 +51,8 @@ data class FinanceEntry(
     val type: String,
     val amount: Double,
     val monthKey: String,
-    val dayOfMonth: Int
+    val dayOfMonth: Int,
+    val paymentMethod: String
 )
 
 class MainActivity : ComponentActivity() {
@@ -91,6 +93,7 @@ fun MeudiaMedApp() {
     var workplaceInput by rememberSaveable { mutableStateOf("") }
     var financeAmountInput by rememberSaveable { mutableStateOf("") }
     var financeType by rememberSaveable { mutableStateOf("Plantões") }
+    var paymentMethod by rememberSaveable { mutableStateOf("Pix") }
 
     val categories = listOf("Estudos", "Trabalho", "Lazer", "Plantão anterior")
     val tasks = remember {
@@ -195,6 +198,16 @@ fun MeudiaMedApp() {
                     onRestInputChange = { restInput = it.filter(Char::isDigit) },
                     onCategoryChange = { studyCategory = it },
                     records = studyRecords,
+                    onDeleteRecord = { record ->
+                        studyRecords.remove(record)
+                        saveStudyRecords(preferences, studyRecords)
+                    },
+                    onClearCurrentMonth = {
+                        studyRecords.removeAll {
+                            it.category == studyCategory && it.monthKey == currentMonthKey()
+                        }
+                        saveStudyRecords(preferences, studyRecords)
+                    },
                     onRegister = {
                         val studyMinutes = studyInput.toIntOrNull() ?: 0
                         val restMinutes = restInput.toIntOrNull() ?: 0
@@ -217,9 +230,19 @@ fun MeudiaMedApp() {
                 "Financeiro" -> FinancialScreen(
                     amountInput = financeAmountInput,
                     selectedType = financeType,
+                    selectedPaymentMethod = paymentMethod,
                     entries = financeEntries,
                     onAmountChange = { financeAmountInput = it },
                     onTypeChange = { financeType = it },
+                    onPaymentMethodChange = { paymentMethod = it },
+                    onDeleteEntry = { entry ->
+                        financeEntries.remove(entry)
+                        saveFinanceEntries(preferences, financeEntries)
+                    },
+                    onClearCurrentMonth = {
+                        financeEntries.removeAll { it.monthKey == currentMonthKey() }
+                        saveFinanceEntries(preferences, financeEntries)
+                    },
                     onAddEntry = {
                         val amount = financeAmountInput.replace(",", ".").toDoubleOrNull()
                         if (amount != null && amount > 0) {
@@ -228,11 +251,15 @@ fun MeudiaMedApp() {
                                     type = financeType,
                                     amount = amount,
                                     monthKey = currentMonthKey(),
-                                    dayOfMonth = currentDayOfMonth()
+                                    dayOfMonth = currentDayOfMonth(),
+                                    paymentMethod = paymentMethod
                                 )
                             )
                             saveFinanceEntries(preferences, financeEntries)
                             financeAmountInput = ""
+                            true
+                        } else {
+                            false
                         }
                     }
                 )
@@ -276,15 +303,57 @@ fun MeudiaMedApp() {
 fun FinancialScreen(
     amountInput: String,
     selectedType: String,
+    selectedPaymentMethod: String,
     entries: List<FinanceEntry>,
     onAmountChange: (String) -> Unit,
     onTypeChange: (String) -> Unit,
-    onAddEntry: () -> Unit
+    onPaymentMethodChange: (String) -> Unit,
+    onDeleteEntry: (FinanceEntry) -> Unit,
+    onClearCurrentMonth: () -> Unit,
+    onAddEntry: () -> Boolean
 ) {
+    var registrationMessage by rememberSaveable { mutableStateOf("") }
+    var paymentFilter by rememberSaveable { mutableStateOf("Todos") }
+    var showClearConfirmation by rememberSaveable { mutableStateOf(false) }
     val currentMonthEntries = entries.filter { it.monthKey == currentMonthKey() }
+    val filteredEntries = if (paymentFilter == "Todos") {
+        currentMonthEntries
+    } else {
+        currentMonthEntries.filter { it.paymentMethod == paymentFilter }
+    }
     val shiftTotal = currentMonthEntries.filter { it.type == "Plantões" }.sumOf { it.amount }
     val fixedTotal = currentMonthEntries.filter { it.type == "Fixo" }.sumOf { it.amount }
 
+    if (showClearConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmation = false },
+            title = { Text("Zerar lançamentos do mês?") },
+            text = { Text("Os lançamentos deste mês serão apagados. O histórico dos meses anteriores será mantido.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearCurrentMonth()
+                    showClearConfirmation = false
+                }) {
+                    Text("Zerar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmation = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+    item {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
     Text("Financeiro", style = MaterialTheme.typography.displaySmall)
     Text("Cadastre os ganhos dos plantões e da renda fixa.")
 
@@ -296,7 +365,6 @@ fun FinancialScreen(
         prefix = { Text("R$ ") },
         modifier = Modifier.fillMaxWidth()
     )
-
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
             selected = selectedType == "Plantões",
@@ -309,8 +377,44 @@ fun FinancialScreen(
             label = { Text("Fixo") }
         )
     }
-    Button(onClick = onAddEntry) {
+    Text("Forma de pagamento", style = MaterialTheme.typography.titleMedium)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(
+            selected = selectedPaymentMethod == "Pix",
+            onClick = { onPaymentMethodChange("Pix") },
+            label = { Text("Pix") }
+        )
+        FilterChip(
+            selected = selectedPaymentMethod == "Transferência",
+            onClick = { onPaymentMethodChange("Transferência") },
+            label = { Text("Transferência") }
+        )
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(
+            selected = selectedPaymentMethod == "Cartão",
+            onClick = { onPaymentMethodChange("Cartão") },
+            label = { Text("Cartão") }
+        )
+        FilterChip(
+            selected = selectedPaymentMethod == "Dinheiro",
+            onClick = { onPaymentMethodChange("Dinheiro") },
+            label = { Text("Dinheiro") }
+        )
+    }
+    Button(
+        onClick = {
+            registrationMessage = if (onAddEntry()) {
+                "Valor cadastrado com sucesso."
+            } else {
+                "Digite um valor maior que zero para cadastrar."
+            }
+        }
+    ) {
         Text("Cadastrar valor")
+    }
+    if (registrationMessage.isNotBlank()) {
+        Text(registrationMessage)
     }
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -325,24 +429,73 @@ fun FinancialScreen(
         }
     }
 
-    if (currentMonthEntries.isEmpty()) {
-        Text("Nenhum valor cadastrado.")
+    Text("Filtrar lançamentos", style = MaterialTheme.typography.titleMedium)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(
+            selected = paymentFilter == "Todos",
+            onClick = { paymentFilter = "Todos" },
+            label = { Text("Todos") }
+        )
+        FilterChip(
+            selected = paymentFilter == "Pix",
+            onClick = { paymentFilter = "Pix" },
+            label = { Text("Pix") }
+        )
+        FilterChip(
+            selected = paymentFilter == "Cartão",
+            onClick = { paymentFilter = "Cartão" },
+            label = { Text("Cartão") }
+        )
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(
+            selected = paymentFilter == "Transferência",
+            onClick = { paymentFilter = "Transferência" },
+            label = { Text("Transferência") }
+        )
+        FilterChip(
+            selected = paymentFilter == "Dinheiro",
+            onClick = { paymentFilter = "Dinheiro" },
+            label = { Text("Dinheiro") }
+        )
+    }
+    TextButton(onClick = { showClearConfirmation = true }) {
+        Text("Zerar lançamentos deste mês")
+    }
+
+    if (filteredEntries.isEmpty()) {
+        Text("Nenhum lançamento encontrado para este filtro.")
     } else {
         Text("Lançamentos", style = MaterialTheme.typography.titleLarge)
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(currentMonthEntries) { entry ->
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            filteredEntries.forEach { entry ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(entry.type)
+                        Text(
+                            entry.type + " • " + entry.paymentMethod,
+                            modifier = Modifier.weight(1f)
+                        )
                         Text(formatCurrency(entry.amount))
+                        IconButton(
+                            onClick = { onDeleteEntry(entry) },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("×", style = MaterialTheme.typography.titleLarge)
+                        }
                     }
                 }
             }
         }
     }
+    }
+    }
+}
 }
 
 @Composable
@@ -466,16 +619,35 @@ fun WorkAgenda(shifts: MutableList<Shift>) {
     var shiftDate by rememberSaveable { mutableStateOf("") }
     var startTime by rememberSaveable { mutableStateOf("") }
     var endTime by rememberSaveable { mutableStateOf("") }
+    val context = LocalContext.current
+    val calendar = remember { Calendar.getInstance() }
+    val datePickerDialog = remember {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                shiftDate = String.format(
+                    Locale("pt", "BR"),
+                    "%02d/%02d/%04d",
+                    dayOfMonth,
+                    month + 1,
+                    year
+                )
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+    }
 
     Text("Agenda de plantões", style = MaterialTheme.typography.titleLarge)
 
-    OutlinedTextField(
-        value = shiftDate,
-        onValueChange = { shiftDate = it },
-        label = { Text("Data do plantão") },
-        placeholder = { Text("Ex.: 28/08/2026") },
+    Text("Data do plantão", style = MaterialTheme.typography.titleMedium)
+    OutlinedButton(
+        onClick = { datePickerDialog.show() },
         modifier = Modifier.fillMaxWidth()
-    )
+    ) {
+        Text(if (shiftDate.isBlank()) "Selecionar data" else shiftDate)
+    }
     OutlinedTextField(
         value = startTime,
         onValueChange = { startTime = it },
@@ -506,8 +678,8 @@ fun WorkAgenda(shifts: MutableList<Shift>) {
     if (shifts.isEmpty()) {
         Text("Nenhum plantão cadastrado.")
     } else {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(shifts) { shift ->
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            shifts.forEach { shift ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text("Plantão — " + shift.date)
@@ -527,11 +699,37 @@ fun StudyScreen(
     onRestInputChange: (String) -> Unit,
     onCategoryChange: (String) -> Unit,
     records: List<StudyRecord>,
+    onDeleteRecord: (StudyRecord) -> Unit,
+    onClearCurrentMonth: () -> Unit,
     onRegister: () -> Unit
 ) {
-    val selectedRecords = records.filter { it.category == selectedCategory }
+    var showClearConfirmation by rememberSaveable { mutableStateOf(false) }
+    val selectedRecords = records.filter {
+        it.category == selectedCategory && it.monthKey == currentMonthKey()
+    }
     val studyTotal = selectedRecords.sumOf { it.studyMinutes }
     val restTotal = selectedRecords.sumOf { it.restMinutes }
+
+    if (showClearConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmation = false },
+            title = { Text("Zerar estudos deste mês?") },
+            text = { Text("Os registros de " + selectedCategory + " deste mês serão apagados. Os meses anteriores serão mantidos.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearCurrentMonth()
+                    showClearConfirmation = false
+                }) {
+                    Text("Zerar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmation = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Text("Estudos", style = MaterialTheme.typography.displaySmall)
     Text("Registre os minutos estudados e os minutos de descanso.")
@@ -572,6 +770,33 @@ fun StudyScreen(
         ) {
             Text("Tempo de estudo: " + formatMinutes(studyTotal))
             Text("Tempo de descanso: " + formatMinutes(restTotal))
+        }
+    }
+    TextButton(onClick = { showClearConfirmation = true }) {
+        Text("Zerar registros deste mês")
+    }
+
+    if (selectedRecords.isNotEmpty()) {
+        Text("Registros deste mês", style = MaterialTheme.typography.titleLarge)
+        selectedRecords.forEach { record ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        formatMinutes(record.studyMinutes) + " de estudo • " +
+                            formatMinutes(record.restMinutes) + " de descanso",
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { onDeleteRecord(record) },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Text("×", style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+            }
         }
     }
 }
@@ -772,6 +997,7 @@ fun saveFinanceEntries(
                 put("amount", entry.amount)
                 put("monthKey", entry.monthKey)
                 put("dayOfMonth", entry.dayOfMonth)
+                put("paymentMethod", entry.paymentMethod)
             }
         )
     }
@@ -790,7 +1016,8 @@ fun loadFinanceEntries(
                 type = item.getString("type"),
                 amount = item.getDouble("amount"),
                 monthKey = item.getString("monthKey"),
-                dayOfMonth = item.getInt("dayOfMonth")
+                dayOfMonth = item.getInt("dayOfMonth"),
+                paymentMethod = item.optString("paymentMethod", "Não informado")
             )
         }
     }.getOrDefault(emptyList())
