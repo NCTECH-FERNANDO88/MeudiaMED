@@ -1,78 +1,86 @@
 # MeudiaMED
 
-Organização pessoal para profissionais e estudantes da saúde: estudos, plantões e finanças em um só lugar.
+> Organização de estudos, plantões e finanças para profissionais e estudantes da saúde.
 
-> Projeto Android em desenvolvimento inicial.
+MeudiaMED reúne a rotina de quem concilia atendimento, preparação para residência e provas, além do controle de ganhos. É um aplicativo Android em desenvolvimento, com dados armazenados localmente no aparelho.
 
-## Sobre
+## O que já é possível fazer
 
-O MeudiaMED ajuda a conciliar a rotina intensa da área da saúde com estudos, plantões, finanças e descanso. O objetivo é concentrar informações essenciais em uma experiência simples, pensada para quem atende, estuda e precisa acompanhar a própria evolução.
-
-## Problema
-
-- Plantões e compromissos de trabalho mudam com frequência.
-- A preparação para residência e provas exige consistência.
-- Ganhos de plantões e renda fixa costumam ficar dispersos em planilhas e anotações.
-- Ferramentas genéricas nem sempre refletem a rotina de profissionais da saúde.
-
-## Funcionalidades atuais
-
-- Registro de horas de estudo nas categorias **Residência** e **Provas**.
-- Resumo mensal de estudos, com comparação ao mesmo período do mês anterior.
-- Cadastro de ganhos de **Plantões** e renda **Fixa**.
-- Resumo financeiro mensal com comparação ao mês anterior.
-- Agenda para cadastrar data e horário de plantões.
-- Tela inicial com avisos de plantões marcados para o dia seguinte e mensagem diária de organização.
-- Configurações locais para e-mail, cargo e especialização.
+- Registrar estudos de **Residência** e **Provas**, incluindo tempo de estudo e de descanso.
+- Consultar o total de horas do mês e compará-lo ao mesmo período do mês anterior.
+- Cadastrar ganhos de **Plantões** e valores **Fixos**.
+- Identificar a forma de pagamento: Pix, transferência, cartão ou dinheiro.
+- Filtrar os lançamentos financeiros e excluir registros quando necessário.
+- Criar plantões com data e horário na agenda de trabalho.
+- Manter e-mail, cargo, especialização e locais de trabalho nas configurações.
+- Acompanhar uma tela inicial com resumo mensal, avisos e frase de organização diária.
 
 ## Público-alvo
 
-Médicos, residentes, estudantes de medicina e outros profissionais da saúde que buscam organizar prática clínica, formação e finanças.
+Médicos, residentes, estudantes de medicina e demais profissionais da saúde que querem acompanhar prática clínica, formação e vida financeira em um só lugar.
 
-## Stack
+## Tecnologias
 
-- **Linguagem:** Kotlin
-- **Interface:** Jetpack Compose
-- **Design system:** Material 3
-- **Plataforma:** Android
-- **IDE:** Android Studio
-- **Build:** Gradle
-- **Armazenamento local atual:** SharedPreferences
-- **Arquitetura atual:** aplicativo de tela única com componentes Compose
+| Área | Tecnologia |
+| --- | --- |
+| Linguagem | Kotlin |
+| Interface | Jetpack Compose |
+| Design system | Material 3 |
+| Plataforma | Android |
+| Build | Gradle |
+| Persistência atual | SharedPreferences |
+| IDE recomendada | Android Studio |
 
-## Estrutura atual
+## Executando o projeto
+
+1. Clone este repositório.
+2. Abra a pasta do projeto no Android Studio.
+3. Aguarde a sincronização do Gradle terminar.
+4. Crie ou inicie um emulador Android.
+5. Clique em **Run** para instalar o MeudiaMED.
+
+Para usar o Terminal na raiz do projeto:
+
+```bash
+./gradlew assembleDebug
+```
+
+O APK de depuração será gerado em `app/build/outputs/apk/debug/`.
+
+## Estrutura do projeto
 
 ```text
 TaskFlowAndroid/
 ├── app/
-│   ├── build.gradle.kts
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── java/com/example/taskflowandroid/
-│       │   ├── MainActivity.kt
-│       │   └── ui/theme/
-│       │       ├── Color.kt
-│       │       ├── Theme.kt
-│       │       └── Type.kt
-│       └── res/
-│           ├── drawable/
-│           ├── mipmap-*/
-│           ├── values/
-│           └── xml/
-├── gradle/libs.versions.toml
-├── build.gradle.kts
-└── settings.gradle.kts
+│   ├── src/main/
+│   │   ├── java/com/example/taskflowandroid/
+│   │   │   ├── MainActivity.kt
+│   │   │   └── ui/theme/
+│   │   └── res/
+│   └── build.gradle.kts
+├── docs/
+│   └── GUIA_DE_TESTE.md
+├── gradle/
+├── README.md
+├── CHANGELOG.md
+└── LICENSE
 ```
 
-## Roadmap
+## Documentação
 
-- [ ] Persistir agenda de plantões e locais de trabalho.
-- [ ] Cadastro de provas e metas mensais de estudo.
-- [ ] Notificações e lembretes.
-- [ ] Exportação de relatórios mensais.
-- [ ] Migração do SharedPreferences para banco local com Room.
-- [ ] Suporte a múltiplos vínculos e fontes de renda.
+- [Guia de teste manual](docs/GUIA_DE_TESTE.md)
+- [Histórico de alterações](CHANGELOG.md)
+- [Licença MIT](LICENSE)
+
+## Próximos passos
+
+- [ ] Salvar a agenda de plantões e os locais de trabalho permanentemente.
+- [ ] Incluir metas mensais e cadastro de provas.
+- [ ] Criar notificações e lembretes.
+- [ ] Exportar relatórios mensais.
+- [ ] Migrar do SharedPreferences para banco local com Room.
+- [ ] Criar uma versão web.
 
 ## Licença
 
-Distribuído sob a licença MIT. Consulte [LICENSE](LICENSE) para mais detalhes.
+Distribuído sob a [licença MIT](LICENSE). Copyright © 2026 Nelson Costa.
